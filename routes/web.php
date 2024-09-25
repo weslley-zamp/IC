@@ -4,6 +4,10 @@ use App\Http\Controllers\ContaController;
 use App\Http\Controllers\ProfileController;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Http\Request; 
+use App\Services\BudgetContext;
+use App\Strategies\Budget\EconomicStrategy;
+use App\Strategies\Budget\ModerateStrategy;
+use App\Strategies\Budget\LuxuriousStrategy;
 
 /*
 |--------------------------------------------------------------------------
@@ -16,11 +20,11 @@ use Illuminate\Http\Request;
 |
 */
 
-
 // CONTAS
 Route::get('/', function () {
     return view('auth/register');
 });
+
 Route::middleware('conta')->group(function () {
     Route::get('/index-conta', [ContaController::class, 'index'])->name('conta.index');
     Route::get('/create-conta', [ContaController::class, 'create'])->name('conta.create');
@@ -55,5 +59,34 @@ Route::middleware('auth')->group(function () {
     })->name('profile.update');
 });
 
+// Rota para calcular o orçamento
+Route::get('/budget', function () {
+    $income = request('income', 5000);  // Obtém a renda da requisição
+    $expenses = request('expenses', 3000);  // Obtém as despesas da requisição
+    $strategyType = request('strategy', 'moderate');  // Define a estratégia padrão como moderada
+
+    // Inicializa o contexto
+    $context = new BudgetContext();
+
+    // Escolhe a estratégia com base no parâmetro passado
+    switch ($strategyType) {
+        case 'economic':
+            $context->setStrategy(new EconomicStrategy());
+            break;
+        case 'luxurious':
+            $context->setStrategy(new LuxuriousStrategy());
+            break;
+        default:
+            $context->setStrategy(new ModerateStrategy());
+            break;
+    }
+
+    // Calcula o orçamento
+    $remainingBudget = $context->calculate($income, $expenses);
+
+    return response()->json([
+        'remainingBudget' => $remainingBudget
+    ]);
+})->name('budget.calculate');
 
 require __DIR__.'/auth.php';
